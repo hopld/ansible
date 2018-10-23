@@ -1,0 +1,107 @@
+- name: Install the some tools
+  yum: name={{item.name}} state=installed
+  with_items:
+    - name: unzip
+    - name: zip
+    - name: tar
+    - name: libselinux-python
+    - name: wget 
+    - name: telnet
+    - name: gcc
+    - name: gcc-c++
+    - name: openssl-devel
+    - name: gd-devel
+    - name: pcre-devel
+    - name: GeoIP-devel 
+
+- name: Create directory if directories not exist
+  file: path={{ item }} state=directory mode=0755
+  with_items:
+    - /usr/src/sources
+    - /opt/apache2.4
+    
+
+- name: Upload apr apache
+  copy: src=apr-1.5.2.tar.gz
+        dest=/usr/src/sources/
+  register: apache
+  tags:
+    - apache 
+
+- name: Upload apr-util apache
+  copy: src=apr-util-1.5.4.tar.gz
+        dest=/usr/src/sources/
+  register: apache
+  tags:
+    - apache
+
+- name: Upload httpd-ver2.4 apache
+  copy: src=httpd-2.4.18.tar.gz
+        dest=/usr/src/sources/
+  register: apache
+  tags:
+    - apache
+- name: Upload conf httpd-ver2.4 apache
+  copy: src=webservice.conf
+        dest=/usr/src/sources/
+  register: apache
+  tags:
+    - apache
+
+- name: unarchive apr source packages
+  unarchive: src={{item.src}} dest={{remote_download_path}} remote_src={{item.remote_src|default("no")}}
+  with_items: 
+    - src: "{{remote_download_path}}/apr-1.5.2.tar.gz"
+      remote_src: "yes"
+    - src: "files/apr-1.5.2.tar.gz"
+
+- name: unarchive apr-util source packages
+  unarchive: src={{item.src}} dest={{remote_download_path}} remote_src={{item.remote_src|default("no")}}
+  with_items:
+    - src: "{{remote_download_path}}/apr-util-1.5.4.tar.gz"
+      remote_src: "yes"
+    - src: "files/apr-util-1.5.4.tar.gz"
+    
+
+- name: unarchive httpd source packages
+  unarchive: src={{item.src}} dest={{remote_download_path}} remote_src={{item.remote_src|default("no")}}
+  with_items:
+    - src: "{{remote_download_path}}/httpd-2.4.18.tar.gz"
+      remote_src: "yes"
+    - src: "files/httpd-2.4.18.tar.gz"
+
+- name: copy  source  apache
+  command: mv /usr/src/sources/apr-1.5.2 /usr/src/sources/httpd-2.4.18/srclib/apr
+  register: apache
+  tags:
+    - apache
+
+- name: copy  source  apache
+  command: mv /usr/src/sources/apr-util-1.5.4 /usr/src/sources/httpd-2.4.18/srclib/apr-util
+  register: apache
+  tags:
+    - apache
+
+- name: copy  conf  apache
+  command: cp /usr/src/sources/webservice.conf /opt/apache2.4/conf/extra/
+  register: apache
+  tags:
+    - apache
+
+- name: apache | Compile the apache source
+  shell: cd /usr/src/sources/httpd-2.4.18  &&  sh ./configure --prefix=/opt/apache2.4 --enable-ssl --enable-proxy --enable-proxy-fcgi --enable-rewrite --enable-deflate --enable-expires --enable-headers --enable-unique-id --enable-so --enable-actions --disable-version --disable-asis --disable-userdir --disable-include --disable-cgid --with-included-apr --with-included-apr-util && make && make install
+  when: >
+   apache.changed
+  sudo: True
+  tags:
+    - apache
+
+- name: Copy same files
+  template: src={{item.src}} dest={{item.dest}} owner=root group=root mode={{item.mode|default("0644")}}
+  with_items: 
+    - src: "templates/init.d_httpd"
+      dest: "/etc/init.d/httpd"
+      mode: "0755"
+    - src: "templates/httpd.conf"
+      dest: "{{apache_conf_dir}}/httpd.conf"
+  notify: restart httpd

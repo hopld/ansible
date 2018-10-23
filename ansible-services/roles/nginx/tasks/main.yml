@@ -1,0 +1,65 @@
+- name: Install the some tools
+  yum: name={{item.name}} state=installed
+  with_items:
+    - name: unzip
+    - name: zip
+    - name: tar
+    - name: libselinux-python
+    - name: wget 
+    - name: telnet
+    - name: gcc
+    - name: gcc-c++
+    - name: openssl-devel
+    - name: gd-devel
+    - name: pcre-devel
+    - name: GeoIP-devel 
+
+- name: Create directory if directories not exist
+  file: path={{ item }} state=directory mode=0755
+  with_items:
+    - /usr/src/sources
+    - /usr/local/nginx-1.11
+    - /usr/local/nginx-1.11/logs
+    - /usr/local/nginx-1.11/conf/sites-enabled
+
+- name: Upload source nginx
+  copy: src=nginx-1.11.2.tar.gz
+        dest=/usr/src/sources/nginx-1.11.2.tar.gz
+  register: nginx
+  tags:
+    - nginx
+
+- name: Upload file config nginx
+  copy: src=touch.chacha.conf
+        dest=/usr/local/nginx-1.11/conf/sites-enabled/touch.chacha.conf
+  register: nginx
+  tags:
+    - nginx
+
+
+- name: unarchive some source packages
+  unarchive: src={{item.src}} dest={{remote_download_path}} remote_src={{item.remote_src|default("no")}}
+  with_items: 
+    - src: "{{remote_download_path}}/nginx-1.11.2.tar.gz"
+      remote_src: "yes"
+    - src: "files/nginx-1.11.2.tar.gz"
+    
+
+
+- name: Nginx | Compile the Nginx source
+  shell: cd /usr/src/sources/nginx-1.11.2  &&  sh ./configure --prefix=/usr/local/nginx-1.11 --with-debug --without-mail_pop3_module --without-mail_imap_module --without-mail_smtp_module --without-http_scgi_module --without-http_uwsgi_module --with-http_gzip_static_module --with-http_realip_module --with-http_ssl_module --with-http_sub_module --with-ipv6 --with-file-aio --with-http_secure_link_module --with-http_image_filter_module --with-http_flv_module --with-http_mp4_module --with-http_stub_status_module --with-http_v2_module --conf-path=/usr/local/nginx-1.11/conf/nginx.conf && make && make install
+  when: >
+   nginx.changed
+  sudo: True
+  tags:
+    - nginx
+
+- name: Copy same files
+  template: src={{item.src}} dest={{item.dest}} owner=root group=root mode={{item.mode|default("0644")}}
+  with_items: 
+    - src: "templates/init.d_nginx"
+      dest: "/etc/init.d/nginx"
+      mode: "0755"
+    - src: "templates/nginx.conf"
+      dest: "{{nginx_conf_dir}}/nginx.conf"
+  notify: restart nginx

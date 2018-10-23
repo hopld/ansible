@@ -1,0 +1,3 @@
+apache_conf_dir: /usr/local/php5.6
+remote_download_path: /usr/src/sources
+

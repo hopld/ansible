@@ -1,0 +1,154 @@
+- name: Install the some tools
+  yum: name={{item.name}} state=installed
+  with_items:
+    - name: unzip
+    - name: zip
+    - name: tar
+    - name: libselinux-python
+    - name: wget 
+    - name: telnet
+    - name: gcc
+    - name: gcc-c++
+    - name: openssl-devel
+    - name: gd-devel
+    - name: pcre-devel
+    - name: GeoIP-devel 
+    - name: autoconf
+    - name: automake  
+    - name: libtool
+    - name: re2c
+    - name: flex
+    - name: bison
+    - name: libxml2-devel
+    - name: curl-devel
+    - name: sqlite-devel
+    - name:  bzip2-devel
+    - name: libcurl-devel
+    - name: libpng-devel
+    - name: gmp-devel
+    - name: libmcrypt
+    - name: libcurl-devel
+    - name: libxslt-devel
+    - name: ImageMagick-devel
+    - name: libjpeg
+    - name: libpng 
+    - name: gdbm-devel
+    - name: libc-client
+    - name: libc-client-devel    
+    - name: libmcrypt-devel
+
+- name: Create directory if directories not exist
+  file: path={{ item }} state=directory mode=0755
+  with_items:
+    - /usr/src/sources
+    - /usr/local/php5.6
+
+- name: Upload php-fpm
+  copy: src=php-5.6.31.tar.gz
+        dest=/usr/src/sources/
+  register: php-fpm
+  tags:
+    - php-fpm
+
+- name: Upload php-fpm.conf
+  copy: src=php-fpm.conf
+        dest=/usr/src/sources/
+  register: php-fpm
+  tags:
+    - php-fpm
+
+- name: Upload www.conf 
+  copy: src=www.conf
+        dest=/usr/src/sources/
+  register: php-fpm
+  tags:
+    - php-fpm
+- name: upload php.ini
+  copy: src=php.ini
+        dest=/usr/src/sources/
+  register: php-fpm
+  tags:
+    - php-fpm
+
+- name: unarchive php-fpm source packages
+  unarchive: src={{item.src}} dest={{remote_download_path}} remote_src={{item.remote_src|default("no")}}
+  with_items: 
+    - src: "{{remote_download_path}}/php-5.6.31.tar.gz"
+      remote_src: "yes"
+    - src: "files/php-5.6.31.tar.gz"
+
+
+
+
+
+
+#- name: copy  file config php-fpm
+#  command: cp /usr/src/sources/www.conf /usr/src/sources/php-5.6.31/etc/
+#  register: php-fpm
+#  tags:
+ #   - php-fpm
+
+#- name: copy  file config php-fpm
+ # command: mv /usr/src/sources/php-fpm.conf /usr/src/sources/php-5.6.31/etc/php-fpm.conf
+ # register: php-fpm
+ # tags:
+  #  - php-fpm
+
+- name: php-fpm | Compile the php-fpm source
+  shell: cd /usr/src/sources/php-5.6.31  &&  sh ./configure --prefix=/usr/local/php5.6 --with-config-file-path=/usr/local/php5.6 --with-mysql --with-mysqli --with-pdo-mysql --with-libdir=lib64 --enable-soap --with-gd --with-zlib-dir --with-freetype-dir --enable-gd-native-ttf --with-zlib --with-bz2 --enable-bcmath --enable-calendar --with-curl --enable-exif --with-jpeg-dir --with-png-dir --with-xsl --with-gettext --with-openssl --with-mhash --with-mcrypt --enable-mbstring --enable-ftp --enable-sockets --disable-cgi  --enable-fpm --enable-zip --enable-pcntl && make && make install
+  
+  sudo: True
+  tags:
+    - php-fpm
+
+#- name: copy  script start php-fpm from source
+ # command: cp /usr/src/sources/php-5.6.31/sapi/fpm/init.d.php-fpm /etc/ansible/ansible-services/roles/php-fpm/templates/
+  # register: php-fpm
+   #  tags:
+    #     - php-fpm
+
+
+#- name: copy  script start php-fpm from source
+#  command: cp /usr/src/sources/php-5.6.31/php.ini-production /usr/local/php5.6/php.ini
+#   register: php-fpm
+ #    tags:
+  #       - php-fpm
+
+#- name: php-fpm | chmod +x 
+#  shell: chmod +x /etc/init.d/php-fpm
+# register: php-fpm
+#     tags:
+ #        - php-fpm
+
+
+
+- name: Copy same files
+  template: src={{item.src}} dest={{item.dest}} owner=root group=root mode={{item.mode|default("0644")}}
+  with_items:
+    - src: "templates/init.d_php-fpm"
+      dest: "/etc/init.d/php-fpm"
+      mode: "0755"
+
+- name: copy  file config php-fpm
+  command: cp /usr/src/sources/php.ini /usr/local/php5.6/
+  register: php-fpm
+  tags:
+   - php-fpm
+
+- name: copy  file config php-fpm
+  command: cp /usr/src/sources/www.conf /usr/local/php5.6/etc/
+  register: php-fpm
+  tags:
+   - php-fpm
+
+- name: copy  file config php-fpm
+  command: cp /usr/src/sources/php-fpm.conf /usr/local/php5.6/etc/php-fpm.conf
+  register: php-fpm
+  tags:
+   - php-fpm
+- name : rm file config php-fpm
+  command: rm /usr/local/php5.6/etc/php-fpm.conf.default
+  register: php-fpm
+  tags:
+   - php-fpm
+
